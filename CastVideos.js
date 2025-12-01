@@ -98,32 +98,35 @@ var CastPlayer = function() {
 };
 
 CastPlayer.prototype.initializeCastPlayer = function() {
+  var options = {};
 
-    var options = {};
+  // Set the receiver application ID to your own (created in the
+  // Google Cast Developer Console), or optionally
+  // use the chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+  options.receiverApplicationId = "CC1AD845"; //C0868879
 
-    // Set the receiver application ID to your own (created in the
-    // Google Cast Developer Console), or optionally
-    // use the chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-    options.receiverApplicationId = 'C0868879';
+  // Auto join policy can be one of the following three:
+  // ORIGIN_SCOPED - Auto connect from same appId and page origin
+  // TAB_AND_ORIGIN_SCOPED - Auto connect from same appId, page origin, and tab
+  // PAGE_SCOPED - No auto connect
+  options.autoJoinPolicy = chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED;
+  options.androidReceiverCompatible = false;
 
-    // Auto join policy can be one of the following three:
-    // ORIGIN_SCOPED - Auto connect from same appId and page origin
-    // TAB_AND_ORIGIN_SCOPED - Auto connect from same appId, page origin, and tab
-    // PAGE_SCOPED - No auto connect
-    options.autoJoinPolicy = chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED;
-    options.androidReceiverCompatible = false;
+  cast.framework.CastContext.getInstance().setOptions(options);
 
-    cast.framework.CastContext.getInstance().setOptions(options);
+  let credentialsData = new chrome.cast.CredentialsData('{"userId": "abc"}');
+  cast.framework.CastContext.getInstance().setLaunchCredentialsData(
+    credentialsData
+  );
 
-    let credentialsData = new chrome.cast.CredentialsData("{\"userId\": \"abc\"}");
-    cast.framework.CastContext.getInstance().setLaunchCredentialsData(credentialsData);
-
-    this.remotePlayer = new cast.framework.RemotePlayer();
-    this.remotePlayerController = new cast.framework.RemotePlayerController(this.remotePlayer);
-    this.remotePlayerController.addEventListener(
-        cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
-        this.switchPlayer.bind(this)
-    );
+  this.remotePlayer = new cast.framework.RemotePlayer();
+  this.remotePlayerController = new cast.framework.RemotePlayerController(
+    this.remotePlayer
+  );
+  this.remotePlayerController.addEventListener(
+    cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+    this.switchPlayer.bind(this)
+  );
 };
 
 /*
