@@ -140,8 +140,27 @@ CastPlayer.prototype.switchPlayer = function() {
     this.playerState = PLAYER_STATE.IDLE;
     if (cast && cast.framework) {
         if (this.remotePlayer.isConnected) {
-            this.setupRemotePlayer();
+          // ★★★ 在此加入判斷裝置是否支援 video receiver ★★★
+          const session =
+            cast.framework.CastContext.getInstance().getCurrentSession();
+          const device = session.getCastDevice();
+
+          console.log("Connected device:", device);
+
+          // device.modelName e.g. "Google Home Mini", "Nest Audio", "Chromecast"
+          const model = device.modelName.toLowerCase();
+
+          if (
+            model.includes("home mini") ||
+            model.includes("nest audio") ||
+            model.includes("home")
+          ) {
+            alert("此裝置不支援影片播放（Receiver 不支援）。");
+            // 你也可以自訂 UI 顯示錯誤
             return;
+          }
+          this.setupRemotePlayer();
+          return;
         }
     }
     this.setupLocalPlayer();
