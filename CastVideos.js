@@ -146,16 +146,7 @@ CastPlayer.prototype.switchPlayer = function() {
           const device = session.getCastDevice();
 
           console.log("Connected device:", device);
-          
-          const model = device[0];
 
-          if (
-            model.includes("home mini") ||
-            model.includes("nest audio") ||
-            model.includes("home")
-          ) {
-            alert("此裝置不支援影片播放（Receiver 不支援）。");
-            // 你也可以自訂 UI 顯示錯誤
             return;
           }
           this.setupRemotePlayer();
