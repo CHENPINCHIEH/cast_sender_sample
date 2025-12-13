@@ -99,11 +99,13 @@ var CastPlayer = function() {
 
 CastPlayer.prototype.initializeCastPlayer = function() {
   var options = {};
+  var defaultAppId = 'CC1AD845';
+  var custumetestId1 = '90CF7469';
 
   // Set the receiver application ID to your own (created in the
   // Google Cast Developer Console), or optionally
   // use the chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-  options.receiverApplicationId = "CC1AD845"; //C0868879
+  options.receiverApplicationId = custumetestId1; // AppID setting
 
   // Auto join policy can be one of the following three:
   // ORIGIN_SCOPED - Auto connect from same appId and page origin
@@ -140,7 +142,7 @@ CastPlayer.prototype.switchPlayer = function() {
     this.playerState = PLAYER_STATE.IDLE;
     if (cast && cast.framework) {
         if (this.remotePlayer.isConnected) {
-          // ★★★ 在此加入判斷裝置是否支援 video receiver ★★★
+         
           const session =
             cast.framework.CastContext.getInstance().getCurrentSession();
           const device = session.getCastDevice();
