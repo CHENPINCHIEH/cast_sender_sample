@@ -146,9 +146,8 @@ CastPlayer.prototype.switchPlayer = function() {
           const device = session.getCastDevice();
 
           console.log("Connected device:", device);
-
-          // device.modelName e.g. "Google Home Mini", "Nest Audio", "Chromecast"
-          const model = device.modelName.toLowerCase();
+          
+          const model = device[0];
 
           if (
             model.includes("home mini") ||
