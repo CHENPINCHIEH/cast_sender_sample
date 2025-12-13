@@ -150,7 +150,6 @@ CastPlayer.prototype.switchPlayer = function() {
           }
           this.setupRemotePlayer();
           return;
-        }
     }
     this.setupLocalPlayer();
 };
