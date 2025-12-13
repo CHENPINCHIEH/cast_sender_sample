@@ -147,7 +147,6 @@ CastPlayer.prototype.switchPlayer = function() {
 
           console.log("Connected device:", device);
 
-            return;
           }
           this.setupRemotePlayer();
           return;
