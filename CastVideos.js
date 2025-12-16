@@ -108,6 +108,7 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   // Google Cast Developer Console), or optionally
   // use the chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
   options.receiverApplicationId = bugniserTestID; // AppID setting
+  console.log('Using Receiver App ID:', options.receiverApplicationId);
 
   // Auto join policy can be one of the following three:
   // ORIGIN_SCOPED - Auto connect from same appId and page origin
@@ -116,6 +117,8 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   options.autoJoinPolicy = chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED;
   options.androidReceiverCompatible = false;
 
+
+  try{
   cast.framework.CastContext.getInstance().setOptions(options);
 
   let credentialsData = new chrome.cast.CredentialsData('{"userId": "abc"}');
@@ -130,7 +133,10 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   this.remotePlayerController.addEventListener(
     cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
     this.switchPlayer.bind(this)
-  );
+  );}catch (error) {
+    console.error('Error initializing Cast Player:', error);
+    alert('Error initializing Cast Player: ' + error.message);
+  }
 };
 
 /*
