@@ -978,8 +978,8 @@ CastPlayer.getErrorMessage = function(error) {
     .then(() => {
       console.log('Session request successful');
     }, (error) => {
-      console.error('Session request failed:', CastPlayer.getErrorMessage(error));
-      alert('Session request failed: ' + CastPlayer.getErrorMessage(error));
+      console.error('Session request failed:', error);
+      // alert('Session request failed: ' + error);
     });
   };
   document.body.prepend(castButton);
