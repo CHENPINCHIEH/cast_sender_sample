@@ -133,7 +133,28 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   this.remotePlayerController.addEventListener(
     cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
     this.switchPlayer.bind(this)
-  );}catch (error) {
+  );
+  // Add listeners for CastContext events
+    const castContext = cast.framework.CastContext.getInstance();
+    castContext.addEventListener(
+        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+        (event) => {
+            console.log('CastContext SESSION_STATE_CHANGED:', event.sessionState, event);
+            if (event.sessionState == cast.framework.SessionState.SESSION_ENDED) {
+                 console.log('Session ended. Error Code:', event.errorCode);
+                 if (event.errorCode) {
+                    console.error('Session end error:', CastPlayer.getErrorMessage(event.errorCode));
+                 }
+            }
+        });
+    castContext.addEventListener(
+        cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+        (event) => {
+            console.log('CastContext CAST_STATE_CHANGED:', event.castState, event);
+        });
+
+     console.log('RemotePlayer and Controller initialized.');
+}catch (error) {
     console.error('Error initializing Cast Player:', error);
     alert('Error initializing Cast Player: ' + error.message);
   }
@@ -949,7 +970,19 @@ CastPlayer.getErrorMessage = function(error) {
                 (error.description ? ' :' + error.description : '');
     }
 };
-
+ // Add a button to trigger cast session request
+  const castButton = document.createElement('button');
+  castButton.textContent = 'Cast';
+  castButton.onclick = () => {
+    cast.framework.CastContext.getInstance().requestSession()
+    .then(() => {
+      console.log('Session request successful');
+    }, (error) => {
+      console.error('Session request failed:', CastPlayer.getErrorMessage(error));
+      alert('Session request failed: ' + CastPlayer.getErrorMessage(error));
+    });
+  };
+  document.body.prepend(castButton);
 /**
  * Hardcoded media json objects
  */
