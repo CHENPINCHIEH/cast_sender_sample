@@ -102,11 +102,12 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   var defaultAppId = 'CC1AD845';
   var custumetestId1 = '90CF7469';
   var styleMediaReceiverId ='46BC63E5';
+  var bugniserTestID='60F3C295';
 
   // Set the receiver application ID to your own (created in the
   // Google Cast Developer Console), or optionally
   // use the chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-  options.receiverApplicationId = styleMediaReceiverId; // AppID setting
+  options.receiverApplicationId = bugniserTestID; // AppID setting
 
   // Auto join policy can be one of the following three:
   // ORIGIN_SCOPED - Auto connect from same appId and page origin
