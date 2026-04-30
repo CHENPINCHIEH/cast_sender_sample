@@ -4,7 +4,6 @@ jspm_packages/
 
 # --- 編譯產出 (TypeScript/Build) ---
 lib/
-dist/
 out/
 build/
 *.tsbuildinfo

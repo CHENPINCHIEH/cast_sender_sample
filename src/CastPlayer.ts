@@ -19,7 +19,7 @@ export interface MediaList {
 }
 
 export interface PlayerTarget {
-  play(): void;
+  play(): Promise<void> | void;
   pause(): void;
   stop(): void;
   load(mediaIndex: number): void;
@@ -35,13 +35,32 @@ export interface PlayerTarget {
 
 export class PlayerHandler {
   private target: PlayerTarget | null = null;
+  private playPromise: Promise<void> | null = null; // Play Lock
   constructor(public castPlayer: CastPlayer) { }
   setTarget(target: PlayerTarget) {
     this.target = target;
   }
-  play() { this.target?.play(); }
-  pause() { this.target?.pause(); }
-  stop() { this.target?.stop(); }
+  play() {
+    const result = this.target?.play();
+    if (result instanceof Promise) {
+      this.playPromise = result;
+      result.finally(() => { this.playPromise = null; });
+    }
+  }
+
+  async pause() {
+    if (this.playPromise) {
+      await this.playPromise.catch(() => { }); // no matter what results, keep going
+    }
+    this.target?.pause();
+  }
+
+  async stop() {
+    if (this.playPromise) {
+      await this.playPromise.catch(() => { }); // no matter what results, keep going
+    }
+    this.target?.stop();
+  }
   load(mediaIndex: number) { this.target?.load(mediaIndex); }
   getCurrentMediaTime(): number { return this.target?.getCurrentMediaTime() || 0; }
   getMediaDuration(): number { return this.target?.getMediaDuration() || 0; }
@@ -96,22 +115,47 @@ export class CastPlayer {
 
     const playerTarget: PlayerTarget = {
       play: () => {
-        localPlayer.play();
-        const vi = document.getElementById('video_image');
-        if (vi) vi.style.display = 'none';
-        localPlayer.style.display = 'block';
+        // play() 回傳的是一個 Promise
+        const playPromise = localPlayer.play();
+
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              // 播放成功後才切換 UI 顯示
+              const vi = document.getElementById('video_image');
+              if (vi) vi.style.display = 'none';
+              localPlayer.style.display = 'block';
+            })
+            .catch((error) => {
+              // 自動播放受限或被 pause() 中斷時會進入這裡
+              console.warn("Playback was prevented or interrupted:", error);
+            });
+        }
       },
       pause: () => {
-        localPlayer.pause();
+        // 只有在影片正在播放時才執行暫停
+        if (!localPlayer.paused) {
+          localPlayer.pause();
+          this.playerState = PlayerState.PAUSED;
+        }
       },
       stop: () => {
         localPlayer.pause();
         localPlayer.currentTime = 0;
+        this.playerState = PlayerState.IDLE;
       },
       load: (mediaIndex: number) => {
         if (this.mediaContents) {
+          // 在加載新資源前，先停止目前的計時器與狀態
+          this.stopProgressTimer();
+
           localPlayer.src = this.mediaContents[mediaIndex].sources[0];
           localPlayer.load();
+
+          // 重置當前播放時間，避免舊影片的時間點帶入新影片
+          this.currentMediaTime = 0;
+
+          this.updateMediaInfoUI(mediaIndex);
         }
       },
       getCurrentMediaTime: () => localPlayer.currentTime,
@@ -155,6 +199,26 @@ export class CastPlayer {
     }
   }
 
+  private updateMediaInfoUI(mediaIndex: number) {
+    if (!this.mediaContents) return;
+    const media = this.mediaContents[mediaIndex];
+
+    const titleEl = document.getElementById('media_title');
+    if (titleEl) {
+      titleEl.innerText = media.title;
+    }
+
+    const subtitleEl = document.getElementById('media_subtitle');
+    if (subtitleEl) {
+      subtitleEl.innerText = media.subtitle;
+    }
+
+    const descEl = document.getElementById('media_desc');
+    if (descEl) {
+      descEl.innerText = media.description;
+    }
+  }
+
   private addVideoThumbs() {
     this.mediaContents = mediaJSON.categories[0].videos;
     const ni = document.getElementById('carousel');
@@ -166,8 +230,8 @@ export class CastPlayer {
       newdiv.setAttribute('id', divIdName);
       newdiv.setAttribute('class', 'thumb');
       newdiv.innerHTML =
-        '<img src="' + MEDIA_SOURCE_ROOT + this.mediaContents[i].thumb +
-        '" class="thumbnail">';
+        '<img src="' + this.mediaContents[i].thumb +
+        '" class="thumbnail" crossorigin="anonymous">';
 
       newdiv.addEventListener('click', () => {
         this.currentMediaIndex = i;
@@ -327,18 +391,23 @@ export class CastPlayer {
       load: (mediaIndex: number) => {
         if (!this.mediaContents) return;
 
-        console.log('Loading...' + this.mediaContents[mediaIndex].title);
-        const mediaInfo = new chrome.cast.media.MediaInfo(
-          this.mediaContents[mediaIndex].sources[0], 'video/mp4');
+        const sourceUrl = this.mediaContents[mediaIndex].sources[0];
+        const contentType = getMimeType(sourceUrl); // 動態獲取類型
+
+        console.log(`Loading... [${contentType}] ${this.mediaContents[mediaIndex].title}`);
+
+        const mediaInfo = new chrome.cast.media.MediaInfo(sourceUrl, contentType);
 
         mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
         mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
         mediaInfo.metadata.title = this.mediaContents[mediaIndex].title;
         mediaInfo.metadata.images = [
-          { url: MEDIA_SOURCE_ROOT + this.mediaContents[mediaIndex].thumb }
+          { url: this.mediaContents[mediaIndex].thumb }
         ];
 
         const request = new chrome.cast.media.LoadRequest(mediaInfo);
+
+        // 原有的 credentials 設定
         (request as any).credentials = 'user-credentials';
         (request as any).atvCredentials = 'atv-user-credentials';
         request.currentTime = this.currentMediaTime;
@@ -352,6 +421,8 @@ export class CastPlayer {
             console.log('Remote media load error: ' + errorCode);
           }
         );
+
+        this.updateMediaInfoUI(mediaIndex);
       },
       getCurrentMediaTime: () => this.remotePlayer?.currentTime || 0,
       getMediaDuration: () => this.remotePlayer?.duration || 0,
@@ -417,11 +488,72 @@ export class CastPlayer {
       p.style.height = currentVolume + 'px';
       p.style.marginTop = -currentVolume + 'px';
     }
-
+    const getMimeType = (url: string): string => {
+      if (url.endsWith('.m3u8')) return 'application/x-mpegurl';
+      if (url.endsWith('.mpd')) return 'application/dash+xml';
+      if (url.endsWith('.flac')) return 'audio/flac';
+      return 'video/mp4'; // 預設值
+    };
     this.playerHandler.play();
   }
 
-  private initializeUI() { }
+  private initializeUI() {
+    // 1. 播放 / 暫停按鈕
+    const playElem = document.getElementById('play');
+    const pauseElem = document.getElementById('pause');
+
+    playElem?.addEventListener('click', () => {
+      this.playerHandler.play();
+      if (playElem) playElem.style.display = 'none';
+      if (pauseElem) pauseElem.style.display = 'block';
+    });
+
+    pauseElem?.addEventListener('click', () => {
+      this.playerHandler.pause();
+      if (playElem) playElem.style.display = 'block';
+      if (pauseElem) pauseElem.style.display = 'none';
+    });
+
+    // 2. 進度條點擊跳轉 (Seek)
+    const progressBg = document.getElementById('progress_bg');
+    progressBg?.addEventListener('click', (event) => {
+      if (this.currentMediaDuration > 0) {
+        // 計算點擊位置比例
+        const rect = progressBg.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const percent = clickX / rect.width;
+        const seekTime = percent * this.currentMediaDuration;
+
+        this.playerHandler.seekTo(seekTime);
+      }
+    });
+
+    // 3. 音量控制
+    const audioBg = document.getElementById('audio_bg_track');
+    audioBg?.addEventListener('click', (event) => {
+      const rect = audioBg.getBoundingClientRect();
+      const clickY = event.clientY - rect.top;
+      // 這裡的 FULL_VOLUME_HEIGHT 通常定義在 constants.ts
+      const volumePosition = FULL_VOLUME_HEIGHT - clickY;
+      this.playerHandler.setVolume(volumePosition);
+    });
+
+    // 4. 靜音切換
+    const audioOn = document.getElementById('audio_on');
+    const audioOff = document.getElementById('audio_off');
+
+    audioOn?.addEventListener('click', () => {
+      this.playerHandler.mute();
+      if (audioOn) audioOn.style.display = 'none';
+      if (audioOff) audioOff.style.display = 'block';
+    });
+
+    audioOff?.addEventListener('click', () => {
+      this.playerHandler.unMute();
+      if (audioOn) audioOn.style.display = 'block';
+      if (audioOff) audioOff.style.display = 'none';
+    });
+  }
 
   private incrementMediaTime() {
     this.currentMediaTime = this.playerHandler.getCurrentMediaTime();
@@ -494,133 +626,21 @@ const mediaJSON = {
       name: "Movies",
       videos: [
         {
-          description: "24 96 flac",
-          sources: [
-            "https://chenpinchieh.github.io/cast_sender_sample/test.flac",
-          ],
-          subtitle: "24 96 flac",
-          thumb: "images/WhatCarCanYouGetForAGrand.jpg",
-          title: "24 96 flac",
+          description: "24 96 flac music file",
+          sources: ["https://chenpinchieh.github.io/cast_sender_sample/test.flac"],
+          subtitle: "Song by Simon & Garfunkel",
+          thumb: "images/2496fac.jpeg",
+          title: "You Can Tell the World",
         },
         {
-          description:
-            "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the rabbit ain't no bunny anymore! In the typical cartoon tradition he prepares the nasty rodents a comical revenge.\n\nLicensed under the Creative Commons Attribution license\nhttp://www.bigbuckbunny.org",
+          description: "BigBuckBunny Video",
           sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            "https://ia601903.us.archive.org/32/items/BigBuckBunny_328/BigBuckBunny_512kb.mp4?cnt=0"
           ],
-          subtitle: "By Blender Foundation",
-          thumb: "images/BigBuckBunny.jpg",
-          title: "Big Buck Bunny",
-        },
-        {
-          description: "The first Blender Open Movie from 2006",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-          ],
-          subtitle: "By Blender Foundation",
-          thumb: "images/ElephantsDream.jpg",
-          title: "Elephant Dream",
-        },
-        {
-          description:
-            "HBO GO now works with Chromecast -- the easiest way to enjoy online video on your TV. For when you want to settle into your Iron Throne to watch the latest episodes. For $35.\nLearn how to use Chromecast with HBO GO and more at google.com/chromecast.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          ],
-          subtitle: "By Google",
-          thumb: "images/ForBiggerBlazes.jpg",
-          title: "For Bigger Blazes",
-        },
-        {
-          description:
-            "Introducing Chromecast. The easiest way to enjoy online video and music on your TV. For when Batman's escapes aren't quite big enough. For $35. Learn how to use Chromecast with Google Play Movies and more at google.com/chromecast.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-          ],
-          subtitle: "By Google",
-          thumb: "images/ForBiggerEscapes.jpg",
-          title: "For Bigger Escape",
-        },
-        {
-          description:
-            "Introducing Chromecast. The easiest way to enjoy online video and music on your TV. For $35.  Find out more at google.com/chromecast.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-          ],
-          subtitle: "By Google",
-          thumb: "images/ForBiggerFun.jpg",
-          title: "For Bigger Fun",
-        },
-        {
-          description:
-            "Introducing Chromecast. The easiest way to enjoy online video and music on your TV. For the times that call for bigger joyrides. For $35. Learn how to use Chromecast with YouTube and more at google.com/chromecast.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-          ],
-          subtitle: "By Google",
-          thumb: "images/ForBiggerJoyrides.jpg",
-          title: "For Bigger Joyrides",
-        },
-        {
-          description:
-            "Introducing Chromecast. The easiest way to enjoy online video and music on your TV. For when you want to make Buster's big meltdowns even bigger. For $35. Learn how to use Chromecast with Netflix and more at google.com/chromecast.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-          ],
-          subtitle: "By Google",
-          thumb: "images/ForBiggerMeltdowns.jpg",
-          title: "For Bigger Meltdowns",
-        },
-        {
-          description:
-            "Sintel is an independently produced short film, initiated by the Blender Foundation as a means to further improve and validate the free/open source 3D creation suite Blender. With initial funding provided by 1000s of donations via the internet community, it has again proven to be a viable development model for both open 3D technology as for independent animation film.\nThis 15 minute film has been realized in the studio of the Amsterdam Blender Institute, by an international team of artists and developers. In addition to that, several crucial technical and creative targets have been realized online, by developers and artists and teams all over the world.\nwww.sintel.org",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-          ],
-          subtitle: "By Blender Foundation",
-          thumb: "images/Sintel.jpg",
-          title: "Sintel",
-        },
-        {
-          description:
-            "Smoking Tire takes the all-new Subaru Outback to the highest point we can find in hopes our customer-appreciation Balloon Launch will get some free T-shirts into the hands of our viewers.",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
-          ],
-          subtitle: "By Garage419",
-          thumb: "images/SubaruOutbackOnStreetAndDirt.jpg",
-          title: "Subaru Outback On Street And Dirt",
-        },
-        {
-          description:
-            "Tears of Steel was realized with crowd-funding by users of the open source 3D creation tool Blender. Target was to improve and test a complete open and free pipeline for visual effects in film - and to make a compelling sci-fi film in Amsterdam, the Netherlands.  The film itself, and all raw material used for making it, have been released under the Creatieve Commons 3.0 Attribution license. Visit the tearsofsteel.org website to find out more about this, or to purchase the 4-DVD box with a lot of extras.  (CC) Blender Foundation - http://www.tearsofsteel.org",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-          ],
-          subtitle: "By Blender Foundation",
-          thumb: "images/TearsOfSteel.jpg",
-          title: "Tears of Steel",
-        },
-        {
-          description:
-            "The Smoking Tire heads out to Adams Motorsports Park in Riverside, CA to test the most requested car of 2010, the Volkswagen GTI. Will it beat the Mazdaspeed3's standard-setting lap time? Watch and see...",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
-          ],
-          subtitle: "By Garage419",
-          thumb: "images/VolkswagenGTIReview.jpg",
-          title: "Volkswagen GTI Review",
-        },
-        {
-          description:
-            "The Smoking Tire is going on the 2010 Bullrun Live Rally in a 2011 Shelby GT500, and posting a video from the road every single day! The only place to watch them is by subscribing to The Smoking Tire or watching at BlackMagicShine.com",
-          sources: [
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-          ],
-          subtitle: "By Garage419",
-          thumb: "images/WeAreGoingOnBullrun.jpg",
-          title: "We Are Going On Bullrun",
-        },
+          subtitle: "BigBuckBunny",
+          thumb: "images/bunny.jpg",
+          title: "BigBuckBunny",
+        }
       ],
     },
   ],

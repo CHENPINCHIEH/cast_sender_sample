@@ -107,6 +107,7 @@ body {
   margin-bottom: 0px;
   width: 960px;
   height: 536px;
+  object-fit: contain;
 }
 
 #video_image_overlay {
@@ -141,7 +142,7 @@ body {
   clear: both;
   float: left;
   width: 940px;
-  height: 116px;
+  height: 50px;
   margin: -4px 0px 0px 40px;
   padding: 10px;
   opacity: 0.9;
@@ -260,7 +261,7 @@ body {
   background-image: url('../imagefiles/timeline_bg_progress.png');
   background-repeat: repeat-x;
 }
-}
+
 
 #progress_indicator {
   cursor: pointer;
