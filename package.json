@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "@types/chrome": "^0.1.40",
+    "@types/chromecast-caf-sender": "^1.0.11",
+    "typescript": "^6.0.3"
+  }
+}

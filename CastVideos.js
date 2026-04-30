@@ -163,7 +163,7 @@ CastPlayer.prototype.initializeCastPlayer = function() {
   }
 };
 
-/*
+/*›
  * PlayerHandler and setup functions
  */
 

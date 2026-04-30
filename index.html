@@ -75,15 +75,7 @@
         <div id="footer_language">Language English</div>
       </div>
 
-      <script src="CastVideos.js"></script>
-      <script type="text/javascript">
-        var castPlayer = new CastPlayer();
-        window['__onGCastApiAvailable'] = function(isAvailable) {
-            if (isAvailable) {
-                castPlayer.initializeCastPlayer();
-            }
-        };
-      </script>
+      <script type="module" src="./src/main.ts"></script>
       <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
 </html>
