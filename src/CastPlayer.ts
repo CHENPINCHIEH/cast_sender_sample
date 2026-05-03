@@ -46,6 +46,7 @@ export class PlayerHandler {
       this.playPromise = result;
       result.finally(() => { this.playPromise = null; });
     }
+    this.castPlayer.setPlayPauseUI(true);
   }
 
   async pause() {
@@ -53,6 +54,7 @@ export class PlayerHandler {
       await this.playPromise.catch(() => { }); // no matter what results, keep going
     }
     this.target?.pause();
+    this.castPlayer.setPlayPauseUI(false);
   }
 
   async stop() {
@@ -60,6 +62,7 @@ export class PlayerHandler {
       await this.playPromise.catch(() => { }); // no matter what results, keep going
     }
     this.target?.stop();
+    this.castPlayer.setPlayPauseUI(false);
   }
   load(mediaIndex: number) { this.target?.load(mediaIndex); }
   getCurrentMediaTime(): number { return this.target?.getCurrentMediaTime() || 0; }
@@ -196,6 +199,18 @@ export class CastPlayer {
 
     if (this.currentMediaTime > 0) {
       this.playerHandler.play();
+    }
+  }
+
+  public setPlayPauseUI(isPlaying: boolean) {
+    const playElem = document.getElementById('play');
+    const pauseElem = document.getElementById('pause');
+    if (isPlaying) {
+      if (playElem) playElem.style.display = 'none';
+      if (pauseElem) pauseElem.style.display = 'block';
+    } else {
+      if (playElem) playElem.style.display = 'block';
+      if (pauseElem) pauseElem.style.display = 'none';
     }
   }
 

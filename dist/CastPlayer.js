@@ -15,18 +15,21 @@ export class PlayerHandler {
             this.playPromise = result;
             result.finally(() => { this.playPromise = null; });
         }
+        this.castPlayer.setPlayPauseUI(true);
     }
     async pause() {
         if (this.playPromise) {
             await this.playPromise.catch(() => { }); // no matter what results, keep going
         }
         this.target?.pause();
+        this.castPlayer.setPlayPauseUI(false);
     }
     async stop() {
         if (this.playPromise) {
             await this.playPromise.catch(() => { }); // no matter what results, keep going
         }
         this.target?.stop();
+        this.castPlayer.setPlayPauseUI(false);
     }
     load(mediaIndex) { this.target?.load(mediaIndex); }
     getCurrentMediaTime() { return this.target?.getCurrentMediaTime() || 0; }
@@ -153,6 +156,22 @@ export class CastPlayer {
         this.showFullscreenButton();
         if (this.currentMediaTime > 0) {
             this.playerHandler.play();
+        }
+    }
+    setPlayPauseUI(isPlaying) {
+        const playElem = document.getElementById('play');
+        const pauseElem = document.getElementById('pause');
+        if (isPlaying) {
+            if (playElem)
+                playElem.style.display = 'none';
+            if (pauseElem)
+                pauseElem.style.display = 'block';
+        }
+        else {
+            if (playElem)
+                playElem.style.display = 'block';
+            if (pauseElem)
+                pauseElem.style.display = 'none';
         }
     }
     updateMediaInfoUI(mediaIndex) {
