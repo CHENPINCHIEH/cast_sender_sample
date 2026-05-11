@@ -564,7 +564,8 @@ const mediaJSON = {
                 {
                     description: "BigBuckBunny Video",
                     sources: [
-                        "https://ia601903.us.archive.org/32/items/BigBuckBunny_328/BigBuckBunny_512kb.mp4?cnt=0"
+                        // "https://ia601903.us.archive.org/32/items/BigBuckBunny_328/BigBuckBunny_512kb.mp4?cnt=0"
+                        "https://storage.googleapis.com/cpe-sample-media/content/big_buck_bunny/big_buck_bunny_m4s_master.m3u8"
                     ],
                     subtitle: "BigBuckBunny",
                     thumb: "images/bunny.jpg",
