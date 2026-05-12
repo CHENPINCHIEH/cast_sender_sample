@@ -21,14 +21,14 @@ export enum PlayerState {
  * Alternative receiver IDs from CastVideos.js:
  * const options = {};
  * const defaultAppId = 'CC1AD845';
- * const customReceiverNoCss = '90CF7469';
+ * const custom-receiver = '90CF7469';
  * const styleMediaReceiverId ='46BC63E5';
  * const bugniserTestID='60F3C295';
  * const bugnisertestDrmId='16920947'; 
  * const customeReceiverWithCastMediaPlayerId = '89F02783'; 
  * const performanceId = 'B70DBD76';
  */
-export const ACTIVE_RECEIVER_ID = 'CC1AD845';
+export const ACTIVE_RECEIVER_ID = '90CF7469';
 
 /**
  * Media source root URL.
