@@ -421,6 +421,7 @@ export class CastPlayer {
         ];
 
         const request = new chrome.cast.media.LoadRequest(mediaInfo);
+        console.log('setupRemotePlayer load request', request);
 
         // 原有的 credentials 設定
         (request as any).credentials = 'user-credentials';
@@ -430,6 +431,7 @@ export class CastPlayer {
         castSession.loadMedia(request).then(
           () => {
             this.playerHandler.loaded();
+            console.log('Remote media load success');
           },
           (errorCode) => {
             this.playerState = PlayerState.IDLE;
