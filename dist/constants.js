@@ -26,8 +26,9 @@ export var PlayerState;
  * const bugnisertestDrmId='16920947';
  * const customeReceiverWithCastMediaPlayerId = '89F02783';
  * const performanceId = 'B70DBD76';
+ * const codelabReceiverId = 'E059DEAE';
  */
-export const ACTIVE_RECEIVER_ID = '90CF7469';
+export const ACTIVE_RECEIVER_ID = 'E059DEAE';
 /**
  * Media source root URL.
  */
